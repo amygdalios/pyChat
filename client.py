@@ -1,5 +1,6 @@
 import socket
 import threading
+from cryptography.fernet import Fernet
 
 # Client setup
 nickname = input("Choose your nickname: ")
@@ -12,14 +13,20 @@ server_port = int(server_port)  # Convert the port to an integer
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((server_ip, server_port))
 
+# Receive the encryption key from the server
+key = client.recv(1024)  # Receive the key
+print(f"Received encryption key: {key.decode('utf-8')}")  # Print the received key
+cipher = Fernet(key)  # Create a Fernet cipher
+
 # Listening to server and sending messages
 def receive():
     while True:
         try:
-            # Receiving message from server
-            message = client.recv(1024).decode('utf-8')
+            # Receiving encrypted message from server
+            encrypted_message = client.recv(1024)
+            message = cipher.decrypt(encrypted_message).decode('utf-8')
             if message == 'NICK':
-                client.send(nickname.encode('utf-8'))
+                client.send(cipher.encrypt(nickname.encode('utf-8')))
             elif message == 'SERVER_SHUTDOWN':
                 print("Server is shutting down... Disconnecting.")
                 client.close()
@@ -35,7 +42,8 @@ def receive():
 def write():
     while True:
         message = f'{nickname}: {input("")}'
-        client.send(message.encode('utf-8'))
+        encrypted_message = cipher.encrypt(message.encode('utf-8'))
+        client.send(encrypted_message)
 
 # Starting threads for receiving and writing messages
 receive_thread = threading.Thread(target=receive)
