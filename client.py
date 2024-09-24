@@ -4,8 +4,13 @@ import threading
 # Client setup
 nickname = input("Choose your nickname: ")
 
+# Asking for the IP and port of the server
+server_info = input("Enter server IP and port (format: IP:PORT): ")
+server_ip, server_port = server_info.split(":")
+server_port = int(server_port)  # Convert the port to an integer
+
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(('127.0.0.1', 12345))
+client.connect((server_ip, server_port))
 
 # Listening to server and sending messages
 def receive():
