@@ -15,7 +15,6 @@ client.connect((server_ip, server_port))
 
 # Receive the encryption key from the server
 key = client.recv(1024)  # Receive the key
-print(f"Received encryption key: {key.decode('utf-8')}")  # Print the received key
 cipher = Fernet(key)  # Create a Fernet cipher
 
 # Listening to server and sending messages
