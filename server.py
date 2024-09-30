@@ -17,6 +17,12 @@ nicknames = []
 key = Fernet.generate_key()  # Generate a key
 cipher = Fernet(key)  # Create a Fernet cipher
 
+def encrypt(cipher: Fernet, message: str) -> bytes:
+    return cipher.encrypt(message.encode('utf-8'))
+
+def decode(cipher: Fernet, message: bytes) -> str:
+    return cipher.decrypt(message).decode('utf-8')
+
 # Broadcasting messages to all connected clients
 def broadcast(message):
     for client in clients:
