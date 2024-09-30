@@ -2,23 +2,32 @@ import socket
 import threading
 from cryptography.fernet import Fernet
 
-# Client setup
-nickname = input("Choose your nickname: ")
+def main():
+    # Client setup
+    nickname = input("Choose your nickname: ")
 
-# Asking for the IP and port of the server
-server_info = input("Enter server IP and port (format: IP:PORT): ")
-server_ip, server_port = server_info.split(":")
-server_port = int(server_port)  # Convert the port to an integer
+    # Asking for the IP and port of the server
+    server_info = input("Enter server IP and port (format: IP:PORT): ")
+    server_ip, server_port = server_info.split(":")
+    server_port = int(server_port)  # Convert the port to an integer
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect((server_ip, server_port))
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((server_ip, server_port))
 
-# Receive the encryption key from the server
-key = client.recv(1024)  # Receive the key
-cipher = Fernet(key)  # Create a Fernet cipher
+    # Receive the encryption key from the server
+    key = client.recv(1024)  # Receive the key
+    cipher = Fernet(key)  # Create a Fernet cipher
+
+    # Starting threads for receiving and writing messages
+    receive_thread = threading.Thread(target = lambda: receive(nickname, cipher, client))
+    write_thread = threading.Thread(target = lambda: write(nickname, cipher, client))
+
+    receive_thread.start()
+    write_thread.start()
+
 
 # Listening to server and sending messages
-def receive():
+def receive(nickname: str, cipher: Fernet, client: socket):
     while True:
         try:
             # Receiving encrypted message from server
@@ -38,15 +47,11 @@ def receive():
             client.close()
             break
 
-def write():
+def write(nickname: str, cipher: Fernet, client: socket):
     while True:
         message = f'{nickname}: {input("")}'
         encrypted_message = cipher.encrypt(message.encode('utf-8'))
         client.send(encrypted_message)
 
-# Starting threads for receiving and writing messages
-receive_thread = threading.Thread(target=receive)
-receive_thread.start()
-
-write_thread = threading.Thread(target=write)
-write_thread.start()
+if __name__ == '__main__':
+    main()
