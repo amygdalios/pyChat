@@ -2,6 +2,8 @@ import socket
 import threading
 from cryptography.fernet import Fernet
 
+from infrastructure.messaging import MessageService
+
 def main():
     # Client setup
     nickname = input("Choose your nickname: ")
@@ -18,23 +20,25 @@ def main():
     key = client.recv(1024)  # Receive the key
     cipher = Fernet(key)  # Create a Fernet cipher
 
+    messager = MessageService(cipher)
+
     # Starting threads for receiving and writing messages
-    receive_thread = threading.Thread(target = lambda: receive(nickname, cipher, client))
-    write_thread = threading.Thread(target = lambda: write(nickname, cipher, client))
+    receive_thread = threading.Thread(target=receive, args=(nickname, messager, client))
+    write_thread = threading.Thread(target=write, args=(nickname, messager, client))
 
     receive_thread.start()
     write_thread.start()
 
 
 # Listening to server and sending messages
-def receive(nickname: str, cipher: Fernet, client: socket):
+def receive(nickname: str, messager: MessageService, client: socket):
     while True:
         try:
             # Receiving encrypted message from server
             encrypted_message = client.recv(1024)
-            message = cipher.decrypt(encrypted_message).decode('utf-8')
+            message = messager.decrypt(encrypted_message)
             if message == 'NICK':
-                client.send(cipher.encrypt(nickname.encode('utf-8')))
+                client.send(messager.encrypt(nickname))
             elif message == 'SERVER_SHUTDOWN':
                 print("Server is shutting down... Disconnecting.")
                 client.close()
@@ -47,10 +51,10 @@ def receive(nickname: str, cipher: Fernet, client: socket):
             client.close()
             break
 
-def write(nickname: str, cipher: Fernet, client: socket):
+def write(nickname: str, messager: MessageService, client: socket):
     while True:
         message = f'{nickname}: {input("")}'
-        encrypted_message = cipher.encrypt(message.encode('utf-8'))
+        encrypted_message = messager.encrypt(message)
         client.send(encrypted_message)
 
 if __name__ == '__main__':

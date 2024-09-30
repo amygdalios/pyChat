@@ -1,8 +1,9 @@
 import socket
 import threading
 import sys
-import os
 from cryptography.fernet import Fernet
+
+from infrastructure.messaging import MessageService
 
 # Server setup
 host = '127.0.0.1'  # Localhost
@@ -17,11 +18,7 @@ nicknames = []
 key = Fernet.generate_key()  # Generate a key
 cipher = Fernet(key)  # Create a Fernet cipher
 
-def encrypt(cipher: Fernet, message: str) -> bytes:
-    return cipher.encrypt(message.encode('utf-8'))
-
-def decode(cipher: Fernet, message: bytes) -> str:
-    return cipher.decrypt(message).decode('utf-8')
+message_service = MessageService(cipher)
 
 # Broadcasting messages to all connected clients
 def broadcast(message):
@@ -34,21 +31,27 @@ def handle_client(client):
         try:
             # Receiving messages from clients
             encrypted_message = client.recv(1024)
-            message = cipher.decrypt(encrypted_message).decode('utf-8')
-            broadcast(cipher.encrypt(message.encode('utf-8')))
+            message = message_service.decrypt(encrypted_message)
+
+            print(f'Received: {message}')
+
+            broadcast(message_service.encrypt(message))
         except:
             # Removing clients on disconnect
             index = clients.index(client)
             clients.remove(client)
             client.close()
             nickname = nicknames[index]
-            broadcast(cipher.encrypt(f'{nickname} left the chat.'.encode('utf-8')))
+
+            disconnect_message = message_service.encrypt(f'{nickname} left the chat.')
+            broadcast(disconnect_message)
             nicknames.remove(nickname)
             break
 
 # Graceful shutdown to notify clients
 def shutdown_server():
-    broadcast(cipher.encrypt("SERVER_SHUTDOWN".encode('utf-8')))
+    shutdown_message = message_service.encrypt('SERVER_SHUTDOWN')
+    broadcast(shutdown_message)
     for client in clients:
         client.close()
     server.close()
@@ -65,18 +68,21 @@ def receive():
             client.send(key)
 
             # Requesting nickname from the client
-            client.send(cipher.encrypt("NICK".encode('utf-8')))
-            nickname = cipher.decrypt(client.recv(1024)).decode('utf-8')
+            client.send(message_service.encrypt('NICK'))
+            nickname = message_service.decrypt(client.recv(1024))
+
             nicknames.append(nickname)
             clients.append(client)
 
-            print(f"Nickname of the client is {nickname}")
-            broadcast(cipher.encrypt(f"{nickname} joined the chat!".encode('utf-8')))
-            client.send(cipher.encrypt('Connected to the server!'.encode('utf-8')))
+            print(f'Nickname of the client is {nickname}')
+            broadcast(message_service.encrypt(f'{nickname} joined the chat!'))
+            client.send(message_service.encrypt('Connected to the server!'))
 
             # Handling individual client in a new thread
             thread = threading.Thread(target=handle_client, args=(client,))
             thread.start()
+
+            print(f'Started thread with ID {thread.ident}')
 
         except KeyboardInterrupt:
             print("\nShutting down the server...")
