@@ -2,30 +2,43 @@ import socket
 import threading
 from cryptography.fernet import Fernet
 
-# Client setup
-nickname = input("Choose your nickname: ")
+from infrastructure.messaging import MessageService
 
-# Asking for the IP and port of the server
-server_info = input("Enter server IP and port (format: IP:PORT): ")
-server_ip, server_port = server_info.split(":")
-server_port = int(server_port)  # Convert the port to an integer
+def main():
+    # Client setup
+    nickname = input("Choose your nickname: ")
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect((server_ip, server_port))
+    # Asking for the IP and port of the server
+    server_info = input("Enter server IP and port (format: IP:PORT): ")
+    server_ip, server_port = server_info.split(":")
+    server_port = int(server_port)  # Convert the port to an integer
 
-# Receive the encryption key from the server
-key = client.recv(1024)  # Receive the key
-cipher = Fernet(key)  # Create a Fernet cipher
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((server_ip, server_port))
+
+    # Receive the encryption key from the server
+    key = client.recv(1024)  # Receive the key
+    cipher = Fernet(key)  # Create a Fernet cipher
+
+    messager = MessageService(cipher)
+
+    # Starting threads for receiving and writing messages
+    receive_thread = threading.Thread(target=receive, args=(nickname, messager, client))
+    write_thread = threading.Thread(target=write, args=(nickname, messager, client))
+
+    receive_thread.start()
+    write_thread.start()
+
 
 # Listening to server and sending messages
-def receive():
+def receive(nickname: str, messager: MessageService, client: socket):
     while True:
         try:
             # Receiving encrypted message from server
             encrypted_message = client.recv(1024)
-            message = cipher.decrypt(encrypted_message).decode('utf-8')
+            message = messager.decrypt(encrypted_message)
             if message == 'NICK':
-                client.send(cipher.encrypt(nickname.encode('utf-8')))
+                client.send(messager.encrypt(nickname))
             elif message == 'SERVER_SHUTDOWN':
                 print("Server is shutting down... Disconnecting.")
                 client.close()
@@ -38,15 +51,11 @@ def receive():
             client.close()
             break
 
-def write():
+def write(nickname: str, messager: MessageService, client: socket):
     while True:
         message = f'{nickname}: {input("")}'
-        encrypted_message = cipher.encrypt(message.encode('utf-8'))
+        encrypted_message = messager.encrypt(message)
         client.send(encrypted_message)
 
-# Starting threads for receiving and writing messages
-receive_thread = threading.Thread(target=receive)
-receive_thread.start()
-
-write_thread = threading.Thread(target=write)
-write_thread.start()
+if __name__ == '__main__':
+    main()
