@@ -4,7 +4,7 @@ A simple terminal-based chat tool with encryption for secure communication I mad
 
 ## Overview
 
-Just a command line python chat application, with a server and a client side using sockets and an extra layer of encryption using one-time hashkeys.
+Just a command line python chat application, with a server and a client side using sockets and an extra layer of encryption using fernet cryptography.
 
 ## Getting Started
 
