@@ -1,6 +1,6 @@
 # pyChat
 
-A simple terminal-based chat tool with encryption for secure communication. I made for fun
+A simple terminal-based chat tool with encryption for secure communication I made for fun
 
 ## Overview
 
